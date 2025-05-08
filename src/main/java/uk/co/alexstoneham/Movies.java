@@ -1,12 +1,17 @@
 package uk.co.alexstoneham;
 
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.KeyEvent;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.Arrays;
 
 import io.github.cdimascio.dotenv.Dotenv;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -26,42 +31,132 @@ public class Movies {
         System.out.println(apiKey);
 
         // swing components
+        JFrame frame = new JFrame("Movie Searcher");
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setSize(800, 600);
+        frame.setResizable(false);
 
-        String filmToSearch = "Inception";
+        JLabel titleLabel = new JLabel("Please enter a movie below");
+        titleLabel.setFont(new Font("Tahoma", Font.BOLD, 24));
+
+        JPanel topPanel = new JPanel();
+        topPanel.add(titleLabel);
+
+        // bottom panel
+        JLabel instructions = new JLabel("Enter movie name:");
+        JTextField countryInputField = new JTextField(15); // Width of 15 columns
+        countryInputField.setFont(new Font("Tahoma", Font.PLAIN, 14));
+        JButton newCountryButton = new JButton("Search");
+
+        JPanel bottomPanel = new JPanel();
+        bottomPanel.add(instructions);
+        bottomPanel.add(countryInputField);
+        bottomPanel.add(newCountryButton);
+
+        frame.setLayout(new BorderLayout());
+        frame.add(topPanel, BorderLayout.NORTH);
+        frame.add(bottomPanel, BorderLayout.SOUTH);
+        frame.setVisible(true);
+
+        // Add a key listener to simulate button click when Enter is pressed
+        countryInputField.addKeyListener(new java.awt.event.KeyAdapter() {
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+                    newCountryButton.doClick(); // Simulates a button click
+                }
+            }
+        });
+
 
         // TO SEARCH FOR MOVIES
-        try {
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(API_BASE_SEARCH + apiKey + API_END_SEARCH + filmToSearch))
-                    .build();
+        newCountryButton.addActionListener(e -> {
+            String filmToSearch = countryInputField.getText().trim();
 
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            if (!filmToSearch.isEmpty()) {
+                try {
+                    // create api request
+                    HttpRequest request = HttpRequest.newBuilder()
+                            .uri(URI.create(API_BASE_SEARCH + apiKey + API_END_SEARCH + filmToSearch))
+                            .build();
 
-            JSONObject json = new JSONObject(response.body());
+                    HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
-            System.out.println(API_BASE_SEARCH + apiKey + API_END_SEARCH + filmToSearch);
-            System.out.println(json);
+                    JSONObject json = new JSONObject(response.body());
 
-            // picked movie
-            int movie_id = 1182444;
+                    System.out.println(API_BASE_SEARCH + apiKey + API_END_SEARCH + filmToSearch);
+                    System.out.println(json);
 
-            // ONCE A MOVIE IS PICKED GET ALL THE DETAILS
-            try {
-                HttpRequest movieRequest = HttpRequest.newBuilder()
-                        .uri(URI.create(API_BASE_TITLE + movie_id + API_MIDDLE_TITLE + apiKey + API_END_TITLE))
-                        .build();
+                    JSONArray results = json.getJSONArray("title_results");
+                    String[][] movieDetails = new String[results.length()][3];
 
-                HttpResponse<String> movieResponse = client.send(movieRequest, HttpResponse.BodyHandlers.ofString());
+                    // collate details about the search results
+                    for (int i = 0; i < results.length(); i++) {
+                        JSONObject item = results.getJSONObject(i);
+                        movieDetails[i][0] = String.valueOf(item.getInt("id"));
+                        movieDetails[i][1] = item.getString("name");
+                        movieDetails[i][2] = String.valueOf(item.getInt("year"));
+                    }
 
-                JSONObject movieJSON = new JSONObject(movieResponse.body());
+                    // create an array to display on screen including name and year of movie
+                    String[] movieNamesAndYears = new String[results.length()];
+                    for (int i = 0; i < results.length(); i++) {
+                        movieNamesAndYears[i] = movieDetails[i][1] + " (" + movieDetails[i][2] + ")";
+                    }
 
-                System.out.println(API_BASE_TITLE + movie_id + API_MIDDLE_TITLE + apiKey + API_END_TITLE);
-                System.out.println(movieJSON);
-            } catch (JSONException | InterruptedException | IOException ex) {
-                ex.printStackTrace();
+                    System.out.println(Arrays.toString(movieNamesAndYears));
+
+                    // pick specific movie
+                    String chosenMovieName = (String) JOptionPane.showInputDialog(
+                            frame,
+                            "Select a movie",
+                            "Search Result",
+                            JOptionPane.PLAIN_MESSAGE,
+                            null,
+                            movieNamesAndYears,
+                            movieNamesAndYears[0]
+                    );
+
+                    // cut the year out of the string
+                    String chosenMovieNameShort = chosenMovieName.substring(0, chosenMovieName.length() - 7);
+                    int chosenMovieYear = Integer.parseInt(chosenMovieName.substring(chosenMovieName.length() - 5, chosenMovieName.length() - 1));
+                    System.out.println(chosenMovieNameShort);
+                    System.out.println(chosenMovieYear);
+
+                    int movie_id = 0;
+
+                    // find the movie's id
+                    for (String[] movieDetail : movieDetails) {
+                        System.out.println(movieDetail[1]);
+                        System.out.println(chosenMovieNameShort);
+                        System.out.println(movieDetail[2]);
+                        System.out.println(chosenMovieYear);
+
+                        if (movieDetail[1].equals(chosenMovieNameShort) && Integer.parseInt(movieDetail[2]) == chosenMovieYear) {
+                            movie_id = Integer.parseInt(movieDetail[0]);
+                            System.out.println(true);
+                            break;
+                        }
+                    }
+
+                    // ONCE A MOVIE IS PICKED GET ALL THE DETAILS
+                    HttpRequest movieRequest = HttpRequest.newBuilder()
+                            .uri(URI.create(API_BASE_TITLE + movie_id + API_MIDDLE_TITLE + apiKey))
+                            .build();
+
+                    HttpResponse<String> movieResponse = client.send(movieRequest, HttpResponse.BodyHandlers.ofString());
+
+                    JSONObject movieJSON = new JSONObject(movieResponse.body());
+
+                    System.out.println(API_BASE_TITLE + movie_id + API_MIDDLE_TITLE + apiKey + API_END_TITLE);
+                    System.out.println(movieJSON);
+
+                    // display movie details
+                    String plot = movieJSON.getString("plot_overview");
+                    System.out.println(plot);
+                } catch (JSONException | InterruptedException | IOException ex) {
+                    ex.printStackTrace();
+                }
             }
-        } catch (JSONException | InterruptedException | IOException ex) {
-            ex.printStackTrace();
-        }
+        });
     }
 }
