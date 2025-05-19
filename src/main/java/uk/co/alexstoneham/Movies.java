@@ -24,6 +24,7 @@ public class Movies {
     private static final String API_SEARCH = "https://api.watchmode.com/v1/search/?apiKey=" + API_KEY + "&search_field=name&search_value=";
     private static final String API_TITLE = "https://api.watchmode.com/v1/title/%d/details/?apiKey=" + API_KEY;
 
+    // headers for stats panel
     private static final String[] HEADERS = {
             "Genre(s)", "Runtime", "User Score", "Critic Score",
             "Rating", "Language"
@@ -39,6 +40,7 @@ public class Movies {
         initUI();
     }
 
+    // create UI elements
     private static void initUI() {
         frame = new JFrame("Movie Searcher");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -92,7 +94,7 @@ public class Movies {
         // events
         searchButton.addActionListener(e -> performSearch());
 
-        // simulate click when enter is pressed on keyboard
+        // simulate click when enter is pressed on the keyboard
         movieInputField.addKeyListener(new java.awt.event.KeyAdapter() {
             public void keyPressed(KeyEvent evt) {
                 if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
@@ -120,7 +122,9 @@ public class Movies {
     }
 
     private static void performSearch() {
+        // clear the panel of any previous elements
         infoPanel.removeAll();
+        // format the search term
         String searchTerm = movieInputField.getText().trim().replace(" ", "%20");
 
         if (searchTerm.isEmpty()) return;
@@ -144,6 +148,7 @@ public class Movies {
                     .map(detail -> detail[1] + " (" + detail[2] + ")")
                     .toArray(String[]::new);
 
+            // popup screen with all the search results
             String selected = (String) JOptionPane.showInputDialog(
                     frame, "Select a movie", "Search Result",
                     JOptionPane.PLAIN_MESSAGE, null,
@@ -165,7 +170,11 @@ public class Movies {
             movieInputField.setText("");
 
         } catch (Exception e) {
-            e.printStackTrace();
+            JOptionPane.showMessageDialog(
+                    frame,
+                    "Could not find movie/tv series. Please try again",
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE);
         }
     }
 
@@ -224,7 +233,7 @@ public class Movies {
         values[4] = usRating.isEmpty() ? "N/A" : usRating;
 
         String language = movieJSON.optString("original_language", "");
-        values[5] = language.isEmpty() ? "N/A" : language;
+        values[5] = language.isEmpty() ? "N/A" : language.toUpperCase();
 
         for (int i = 0; i < HEADERS.length; i++) {
             infoPanel.add(createInfoLabel(HEADERS[i], true));
